@@ -1,0 +1,13 @@
+{
+"model" : "PSPL",
+"system_type" : "BH",
+"path_save" : "/mnt/",
+"ra" : 266,
+"dec" : -29.0,
+"radius" : 0.2,
+"N" : 50,
+"description" : "test",
+"path_save" : "/home/anibal/light_curve_rubin_test/",
+"t0_range" : [2460413.013828608,2463335.01383],
+"Ds_max" : 8000
+}
