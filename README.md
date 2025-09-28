@@ -153,5 +153,3 @@ Parallax is included by default for these models.
 
 ---
 
-
-<sub>Repository: https://github.com/anibal-art/rubin_lightcurves</sub>
