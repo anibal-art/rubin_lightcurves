@@ -1,8 +1,8 @@
 # Rubin Microlensing Light Curves
 
-Tools to simulate **Rubin Observatory** microlensing light curves, designed to mirror the setup used in the Roman+Rubin synergy work. This repo is intended to be integrated into Karen’s pipeline (with image-based simulations from DP0/DP1) soon; meanwhile you can use it standalone.
+Tools to simulate **Rubin Observatory** microlensing light curves.
 
-> The code uses **rubin_sim** for cadence & photometry, **TRILEGAL** (via Astro Data Lab) for stellar populations, and **pyLIMA** for microlensing light-curve generation. The focus is on producing realistic light curves, not on population-level inference; e.g., we use uniform mass distributions and associate TRILEGAL source proper motions with foreground lenses along the same line of sight to obtain \( \mu_{\rm rel} \).
+> The code uses **rubin_sim** for cadence & photometry, **TRILEGAL** (via Astro Data Lab) for stellar populations, and **pyLIMA** for microlensing light-curve generation. The focus is on producing realistic light curves, not on population-level inference; e.g., we use uniform mass distributions and associate TRILEGAL source proper motions with foreground lenses along the same line of sight to obtain $$\mu_{\rm rel} $$.
 
 ---
 
@@ -46,10 +46,13 @@ conda create -n rubin-ml python=3.10
 conda activate rubin-ml
 
 # Core deps
-pip install rubin-sim pyLIMA astropy numpy pandas matplotlib
+pip install pyLIMA astropy numpy pandas matplotlib
+pip install rubin-sim
+scheduler_download_data
+rs_download_data
 
 # Astro Data Lab client (provides the `dl` module)
-pip install noirlab-auth-client noirlab-datalab
+pip install --ignore-installed --no-cache-dir astro-datalab
 
 # For fast Parquet I/O used by the parallel runner
 pip install pyarrow
@@ -136,35 +139,9 @@ Parallax is included by default for these models.
 
 ## Parallel Execution
 
-The **Approach B** runner (`sim_parallel.py`) uses the `spawn` method with a **process pool**. To minimize IPC:
-
 - The TRILEGAL DataFrame is written **once** to **Parquet** and loaded **once per worker**.
 - Thread oversubscription is avoided by setting `OMP_NUM_THREADS=1`, `MKL_NUM_THREADS=1`, etc., in each child.
 - Control concurrency with `N_tr` (or leave it for Slurm to provide via `SLURM_CPUS_PER_TASK`).
-
----
-
-## Troubleshooting
-
-- **Repeated login prompts in parallel mode**  
-  Ensure all interactive code (e.g., `ac.login(...)`) is guarded:
-  ```python
-  if __name__ == "__main__":
-      cli()
-  ```
-  Workers must not perform logins.
-
-- **Missing `pyarrow` / Parquet errors**  
-  `pip install pyarrow`
-
-- **KeyError for magnitudes**  
-  Ensure mapping to `u,g,r,i,z,Y` is applied before simulation.
-
-- **Throughput files not found**  
-  Confirm `~/rubin_sim_data/throughputs/baseline/total_{band}.dat` exists.
-
-- **Permissions**  
-  Ensure `path_save` exists and is writable; the code attempts to create it.
 
 ---
 
@@ -172,23 +149,7 @@ The **Approach B** runner (`sim_parallel.py`) uses the `spawn` method with a **p
 
 - **TRILEGAL via Astro Data Lab**: Piero Dal Tio et al., *ApJS*, DOI: [10.3847/1538-4365/ac7be6](https://doi.org/10.3847/1538-4365/ac7be6)  
 - **Rubin photometric error model**: Ivezić et al. 2019, *ApJ*, DOI: [10.3847/1538-4357/ab042c](https://doi.org/10.3847/1538-4357/ab042c)  
-- **pyLIMA**: microlensing modeling & simulation toolkit
+- **pyLIMA**: microlensing modeling & simulation. E. Bachelet et al 2017 AJ 154 203DOI 10.3847/1538-3881/aa911c (https://pylima.readthedocs.io/en/latest/)
 
 ---
 
-## License
-
-Specify a license in `LICENSE` (e.g., MIT). Example:  
-```
-MIT License — see LICENSE for details.
-```
-
----
-
-## Acknowledgements
-
-Thanks to the Roman+Rubin synergy community and contributors to **rubin_sim**, **pyLIMA**, **Astro Data Lab**, and **TRILEGAL**.
-
----
-
-<sub>Repository: https://github.com/anibal-art/rubin_lightcurves</sub>
