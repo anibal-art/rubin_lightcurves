@@ -145,30 +145,6 @@ Parallax is included by default for these models.
 
 ---
 
-## Troubleshooting
-
-- **Repeated login prompts in parallel mode**  
-  Ensure all interactive code (e.g., `ac.login(...)`) is guarded:
-  ```python
-  if __name__ == "__main__":
-      cli()
-  ```
-  Workers must not perform logins.
-
-- **Missing `pyarrow` / Parquet errors**  
-  `pip install pyarrow`
-
-- **KeyError for magnitudes**  
-  Ensure mapping to `u,g,r,i,z,Y` is applied before simulation.
-
-- **Throughput files not found**  
-  Confirm `~/rubin_sim_data/throughputs/baseline/total_{band}.dat` exists.
-
-- **Permissions**  
-  Ensure `path_save` exists and is writable; the code attempts to create it.
-
----
-
 ## References
 
 - **TRILEGAL via Astro Data Lab**: Piero Dal Tio et al., *ApJS*, DOI: [10.3847/1538-4365/ac7be6](https://doi.org/10.3847/1538-4365/ac7be6)  
@@ -177,19 +153,5 @@ Parallax is included by default for these models.
 
 ---
 
-## License
-
-Specify a license in `LICENSE` (e.g., MIT). Example:  
-```
-MIT License — see LICENSE for details.
-```
-
----
-
-## Acknowledgements
-
-Thanks to the Roman+Rubin synergy community and contributors to **rubin_sim**, **pyLIMA**, **Astro Data Lab**, and **TRILEGAL**.
-
----
 
 <sub>Repository: https://github.com/anibal-art/rubin_lightcurves</sub>
