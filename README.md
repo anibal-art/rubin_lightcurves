@@ -2,7 +2,7 @@
 
 Tools to simulate **Rubin Observatory** microlensing light curves.
 
-> The code uses **rubin_sim** for cadence & photometry, **TRILEGAL** (via Astro Data Lab) for stellar populations, and **pyLIMA** for microlensing light-curve generation. The focus is on producing realistic light curves, not on population-level inference; e.g., we use uniform mass distributions and associate TRILEGAL source proper motions with foreground lenses along the same line of sight to obtain \( \mu_{\rm rel} \).
+> The code uses **rubin_sim** for cadence & photometry, **TRILEGAL** (via Astro Data Lab) for stellar populations, and **pyLIMA** for microlensing light-curve generation. The focus is on producing realistic light curves, not on population-level inference; e.g., we use uniform mass distributions and associate TRILEGAL source proper motions with foreground lenses along the same line of sight to obtain $$\mu_{\rm rel} $$.
 
 ---
 
