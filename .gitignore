@@ -1,0 +1,5 @@
+resultsDb_sqlite.db
+\temp
+__pycache__
+.ipynb_checkpoints
+

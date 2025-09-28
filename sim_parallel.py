@@ -1,16 +1,16 @@
-import os, signal, time, tempfile, logging, re, sys
+# runner_rr_parallel.py
+import os, signal, tempfile, logging
 import concurrent.futures as cf
 import multiprocessing as mp
 from pathlib import Path
-from typing import Iterable, Tuple, List, Optional
+from typing import Iterable, Tuple, Optional, Dict, Any, Callable
+
+import pandas as pd  # needed in parent and children
 
 # ---------- Logging ----------
-logging.basicConfig(
-    level=logging.INFO,
-    format="%(asctime)s | %(levelname)s | %(message)s",
-)
+logging.basicConfig(level=logging.INFO, format="%(asctime)s | %(levelname)s | %(message)s")
 
-# ---------- Helpers ----------
+# ---------- Thread/BLAS limits ----------
 ENV_NO_OMP = {
     "OMP_NUM_THREADS": "1",
     "MKL_NUM_THREADS": "1",
@@ -18,16 +18,32 @@ ENV_NO_OMP = {
     "NUMEXPR_NUM_THREADS": "1",
 }
 
-def _set_tmpdir():
-    tmp = os.environ.get("TMPDIR") or tempfile.gettempdir()
-    tempfile.tempdir = tmp  # ayuda a evitar NFS en cancelaciones
-    return tmp
-
 def _blas_sanitize():
-    # Evita over-subscription dentro de cada proceso hijo
+    """Limit per-process thread pools to avoid oversubscription."""
     for k, v in ENV_NO_OMP.items():
         os.environ.setdefault(k, v)
 
+# ---------- TMP handling ----------
+def _set_tmpdir() -> str:
+    tmp = os.environ.get("TMPDIR") or tempfile.gettempdir()
+    tempfile.tempdir = tmp
+    return tmp
+
+# ---------- Workers’ shared DataFrame ----------
+_DF: Optional[pd.DataFrame] = None
+
+def _child_init(df_path: str):
+    """
+    Runs in each child process once:
+    - set BLAS limits
+    - load TRILEGAL DataFrame into a module-global
+    """
+    _blas_sanitize()
+    global _DF
+    # Use a fast columnar format; Parquet requires pyarrow or fastparquet.
+    _DF = pd.read_parquet(df_path)
+
+# ---------- Utility ----------
 def _slurm_workers() -> int:
     try:
         return max(1, int(os.environ.get("SLURM_CPUS_PER_TASK", os.cpu_count() or 1)))
@@ -36,131 +52,102 @@ def _slurm_workers() -> int:
 
 def _bounded_submit(
     ex: cf.Executor,
-    job_iter: Iterable[Tuple[callable, tuple, dict]],
+    job_iter: Iterable[Tuple[Callable, tuple, dict]],
     max_in_flight: int,
-    stop_flag: dict,
+    stop_flag: Dict[str, bool],
 ):
-    """Mantiene un número acotado de tareas en vuelo."""
+    """Keep at most `max_in_flight` tasks in-flight; propagate worker errors."""
     in_flight = set()
     it = iter(job_iter)
 
-    # Priming
+    # Prime queue
     try:
         for _ in range(max_in_flight):
             func, args, kwargs = next(it)
-            fut = ex.submit(func, *args, **kwargs)
-            in_flight.add(fut)
+            in_flight.add(ex.submit(func, *args, **kwargs))
     except StopIteration:
         pass
 
-    # Consume resultados y repone
     while in_flight and not stop_flag["flag"]:
         done, in_flight = cf.wait(in_flight, return_when=cf.FIRST_COMPLETED)
         for fut in done:
-            # Propaga excepción del worker si la hubo (queda log abajo)
-            fut.result()
-        # Reponer hasta mantener el cupo
+            fut.result()  # raises if worker failed
         try:
             for _ in range(len(done)):
                 func, args, kwargs = next(it)
-                fut = ex.submit(func, *args, **kwargs)
-                in_flight.add(fut)
+                in_flight.add(ex.submit(func, *args, **kwargs))
         except StopIteration:
-            # no hay más trabajos -> drenamos lo que queda
             pass
 
-    # Si nos pidieron frenar, no seguimos reponiendo; dejamos que se apaguen
-    return
-
-# ---------- Workers (procesos) ----------
-def _worker_sim_fit(i: int,
-                    system_type: str, model: str, algo: str,
-                    path_TRILEGAL_set: str, path_GENULENS_set: str,
-                    path_to_save_model: str, path_to_save_fit: str,
-                    path_ephemerides: str, path_dataslice: str):
-    """Worker que llama directamente a functions_roman_rubin.sim_fit(...) en un proceso hijo."""
-    _blas_sanitize()
+# ---------- Worker ----------
+def _worker_sim(
+    i: int,
+    system_type: str,
+    model: str,
+    path_to_save_model: str,
+    t0_range: Tuple[float, float],
+) -> int:
+    """
+    Runs in child. Fetch row i from global _DF and call simulator.sim_rubin_event.
+    """
     try:
-        from simulator import sim_rubin_event
-        sim_rubin_event(i, system_type, model, algo,
-                path_TRILEGAL_set, path_GENULENS_set,
-                path_to_save_model, path_to_save_fit,
-                path_ephemerides, path_dataslice)
+        from simulator import sim_rubin_event  # import inside child to avoid early BLAS init
+        row = _DF.iloc[i]  # pandas Series (positional index)
+        # If your function expects a dict instead of a Series, use: row = row.to_dict()
+        sim_rubin_event(i, system_type, model, row, path_to_save_model, t0_range)
         logging.info(f"[sim:{i}] OK")
-        return 0
+        return i
     except Exception as e:
         logging.exception(f"[sim:{i}] FAILED: {e}")
-        # Lanza para que el futuro marque error y aparezca en el .result()
         raise
 
-def _worker_read_fit(nsource: int, nset: int, path_run: str,
-                     model: str, algo: str, path_to_save_fit: str,
-                     path_ephemerides: str):
-    """Worker que llama directamente a functions_roman_rubin.read_fit(...) en un proceso hijo."""
-    _blas_sanitize()
-    try:
-        from functions_roman_rubin import read_fit
-        read_fit(nsource, str(nset), path_run, model, algo,
-                 path_to_save_fit, path_ephemerides)
-        logging.info(f"[read:{nset}:{nsource}] OK")
-        return 0
-    except Exception as e:
-        logging.exception(f"[read:{nset}:{nsource}] FAILED: {e}")
-        raise
-
-# ---------- Generadores de trabajos ----------
-def _iter_sim_jobs(total_events: int,
-                   system_type: str, model: str, algo: str,
-                   path_TRILEGAL_set: str, path_GENULENS_set: str,
-                   path_to_save_model: str, path_to_save_fit: str,
-                   path_ephemerides: str, path_dataslice: str):
+# ---------- Job generator ----------
+def _iter_sim_jobs(
+    total_events: int,
+    system_type: str,
+    model: str,
+    path_to_save_model: str,
+    t0_range: Tuple[float, float],
+):
     for i in range(int(total_events)):
-        yield (_worker_sim_fit,
-               (i, system_type, model, algo,
-                path_TRILEGAL_set, path_GENULENS_set,
-                path_to_save_model, path_to_save_fit,
-                path_ephemerides, path_dataslice),
-               {})
+        yield (_worker_sim, (i, system_type, model, path_to_save_model, t0_range), {})
 
-def _list_event_numbers(h5_dir: Path) -> List[int]:
-    patt = re.compile(r"Event_(\d+)\.h5$")
-    nums: List[int] = []
-    for f in h5_dir.glob("*.h5"):
-        m = patt.search(f.name)
-        if m:
-            nums.append(int(m.group(1)))
-    nums.sort()
-    return nums
-
-def _iter_readfit_jobs(nset: int, path_run: str, model: str, algo: str,
-                       path_to_save_fit: str, path_ephemerides: str):
-    directory = Path(path_run) / f"set_sim{nset}"
-    for nsource in _list_event_numbers(directory):
-        yield (_worker_read_fit,
-               (nsource, nset, path_run, model, algo, path_to_save_fit, path_ephemerides),
-               {})
-
-# ---------- API pública ----------
-def run_parallel(path_ephemerides, path_dataslice, path_TRILEGAL_set, path_GENULENS_set,
-                 path_to_save_fit, path_to_save_model, model, system_type, algo,
-                 N_tr,
-                 total_events: int = 250_000,
-                 max_in_flight: Optional[int] = None):
+# ---------- Public API ----------
+def run_parallel(
+    TRILEGAL_data: "pd.DataFrame",
+    path_to_save_model: str | Path,
+    model: str,
+    system_type: str,
+    N_tr: Optional[int],
+    t0_range: Tuple[float, float],
+    total_events: int = 250_000,
+    max_in_flight: Optional[int] = None,
+):
     """
-    Versión adaptada al snippet:
-    - ProcessPoolExecutor con 'spawn'
-    - Respeta SLURM_CPUS_PER_TASK
-    - Terminación cooperativa por SIGTERM
-    - TMPDIR local
-    - Back-pressure (max_in_flight) para no saturar memoria/planificador
+    Parallel runner:
+      - Spawns processes with 'spawn'
+      - Sets BLAS thread caps in child initializer
+      - Loads TRILEGAL_data once per child (from Parquet)
+      - Uses bounded in-flight to avoid blowing RAM / scheduler
     """
     _set_tmpdir()
+
+    # Persist the DF once; children will map it into memory from disk.
+    df_tmp_path = Path(tempfile.gettempdir()) / f"trilegal_{os.getpid()}.parquet"
+    TRILEGAL_data = TRILEGAL_data.reset_index(drop=True)
+    TRILEGAL_data.to_parquet(df_tmp_path, index=False)
+
     workers = N_tr or _slurm_workers()
     if max_in_flight is None:
-        # Mantener algunas docenas por worker suele ir bien (I/O, RAM)
         max_in_flight = max(4, workers * 20)
 
-    # Señal de stop cooperativa (e.g., Slurm --signal=SIGTERM@60)
+    # Don’t overrun the DataFrame
+    total_events = min(int(total_events), len(TRILEGAL_data))
+    if total_events <= 0:
+        logging.warning("No events to run (total_events <= 0).")
+        return
+
+    # Cooperative stop on SIGTERM (e.g., Slurm --signal=SIGTERM@60)
     stop = {"flag": False}
     def _term_handler(signum, frame):
         stop["flag"] = True
@@ -168,48 +155,29 @@ def run_parallel(path_ephemerides, path_dataslice, path_TRILEGAL_set, path_GENUL
     signal.signal(signal.SIGTERM, _term_handler)
 
     ctx = mp.get_context("spawn")
-    ex = cf.ProcessPoolExecutor(max_workers=workers, mp_context=ctx)
-
-    jobs = _iter_sim_jobs(
-        total_events, system_type, model, algo,
-        path_TRILEGAL_set, path_GENULENS_set,
-        path_to_save_model, path_to_save_fit,
-        path_ephemerides, path_dataslice
-    )
-
     try:
-        _bounded_submit(ex, jobs, max_in_flight=max_in_flight, stop_flag=stop)
+        with cf.ProcessPoolExecutor(
+            max_workers=workers,
+            mp_context=ctx,
+            initializer=_child_init,
+            initargs=(str(df_tmp_path),),
+        ) as ex:
+            jobs = _iter_sim_jobs(
+                total_events=total_events,
+                system_type=system_type,
+                model=model,
+                path_to_save_model=str(path_to_save_model),
+                t0_range=t0_range,
+            )
+            _bounded_submit(ex, jobs, max_in_flight=max_in_flight, stop_flag=stop)
     finally:
-        # Apagado rápido y cancelación de futuros no iniciados
-        ex.shutdown(wait=False, cancel_futures=True)
+        # Cleanup temp parquet
+        try:
+            df_tmp_path.unlink(missing_ok=True)
+        except Exception:
+            logging.warning(f"No se pudo borrar el archivo temporal {df_tmp_path}")
 
-def run_parallel_read_fit(nset, path_run, path_ephemerides, path_to_save_fit,
-                          model, algo, N_tr,
-                          max_in_flight: Optional[int] = None):
-    _set_tmpdir()
-    workers = N_tr or _slurm_workers()
-    if max_in_flight is None:
-        max_in_flight = max(4, workers * 20)
-
-    stop = {"flag": False}
-    def _term_handler(signum, frame):
-        stop["flag"] = True
-        logging.warning("SIGTERM recibido: deteniendo consumo y cancelando tareas...")
-    signal.signal(signal.SIGTERM, _term_handler)
-
-    ctx = mp.get_context("spawn")
-    ex = cf.ProcessPoolExecutor(max_workers=workers, mp_context=ctx)
-
-    jobs = _iter_readfit_jobs(nset, path_run, model, algo, path_to_save_fit, path_ephemerides)
-
-    try:
-        _bounded_submit(ex, jobs, max_in_flight=max_in_flight, stop_flag=stop)
-    finally:
-        ex.shutdown(wait=False, cancel_futures=True)
-
-# ---------- Main opcional para pruebas ----------
+# ---------- Main (optional quick test) ----------
 if __name__ == "__main__":
     mp.freeze_support()
-    # Pequeña prueba sintética (reemplaza por tus calls reales)
-    # run_parallel(...); run_parallel_read_fit(...)
     print("runner_rr loaded")
