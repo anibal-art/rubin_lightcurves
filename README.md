@@ -1,6 +1,6 @@
 # Rubin Microlensing Light Curves
 
-Tools to simulate **Rubin Observatory** microlensing light curves, designed to mirror the setup used in the Roman+Rubin synergy work. This repo is intended to be integrated into Karen’s pipeline (with image-based simulations from DP0/DP1) soon; meanwhile you can use it standalone.
+Tools to simulate **Rubin Observatory** microlensing light curves.
 
 > The code uses **rubin_sim** for cadence & photometry, **TRILEGAL** (via Astro Data Lab) for stellar populations, and **pyLIMA** for microlensing light-curve generation. The focus is on producing realistic light curves, not on population-level inference; e.g., we use uniform mass distributions and associate TRILEGAL source proper motions with foreground lenses along the same line of sight to obtain \( \mu_{\rm rel} \).
 
