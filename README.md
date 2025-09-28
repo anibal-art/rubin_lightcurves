@@ -173,7 +173,7 @@ Parallax is included by default for these models.
 
 - **TRILEGAL via Astro Data Lab**: Piero Dal Tio et al., *ApJS*, DOI: [10.3847/1538-4365/ac7be6](https://doi.org/10.3847/1538-4365/ac7be6)  
 - **Rubin photometric error model**: Ivezić et al. 2019, *ApJ*, DOI: [10.3847/1538-4357/ab042c](https://doi.org/10.3847/1538-4357/ab042c)  
-- **pyLIMA**: microlensing modeling & simulation toolkit
+- **pyLIMA**: microlensing modeling & simulation [10.3847/1538-3881/aa911c] (https://pylima.readthedocs.io/en/latest/)
 
 ---
 
