@@ -136,8 +136,6 @@ Parallax is included by default for these models.
 
 ## Parallel Execution
 
-The **Approach B** runner (`sim_parallel.py`) uses the `spawn` method with a **process pool**. To minimize IPC:
-
 - The TRILEGAL DataFrame is written **once** to **Parquet** and loaded **once per worker**.
 - Thread oversubscription is avoided by setting `OMP_NUM_THREADS=1`, `MKL_NUM_THREADS=1`, etc., in each child.
 - Control concurrency with `N_tr` (or leave it for Slurm to provide via `SLURM_CPUS_PER_TASK`).
