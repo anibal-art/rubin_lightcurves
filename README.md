@@ -49,7 +49,7 @@ conda activate rubin-ml
 pip install rubin-sim pyLIMA astropy numpy pandas matplotlib
 
 # Astro Data Lab client (provides the `dl` module)
-pip install noirlab-auth-client noirlab-datalab
+pip install --ignore-installed --no-cache-dir astro-datalab
 
 # For fast Parquet I/O used by the parallel runner
 pip install pyarrow
