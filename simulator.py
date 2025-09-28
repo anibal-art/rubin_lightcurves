@@ -39,6 +39,7 @@ from detection_criteria import filter5points, deviation_from_constant, has_conse
 from read_save import save_sim, read_data
 
 
+home_dir = os.path.expanduser("~")
 
 
 def telescope_rubin(name_event,Ra, Dec):
@@ -52,9 +53,10 @@ def telescope_rubin(name_event,Ra, Dec):
     lsst_filterlist = 'ugrizy'
     for f in lsst_filterlist:
         LSST_BandPass[f] = Bandpass()
-        path_che = '/home/anibal/rubin_sim_data/throughputs/baseline/'
-        LSST_BandPass[f].read_throughput(path_che + f'total_{f}.dat')
+        path_rubin_sim_data_baseline = home_dir+'/rubin_sim_data/throughputs/baseline/'
+        LSST_BandPass[f].read_throughput(path_rubin_sim_data_baseline + f'total_{f}.dat')
     baseline_file = get_baseline() #last baseline
+    print("Opsim: ", baseline_file)
     conn = baseline_file
     outDir = 'temp'
     resultsDb = maf.db.ResultsDb()

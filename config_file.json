@@ -4,7 +4,7 @@
 "path_save" : "/mnt/",
 "ra" : 266,
 "dec" : -29.0,
-"radius" : 0.2,
+"radius" : 0.1,
 "N" : 50,
 "description" : "test",
 "path_save" : "/home/anibal/light_curve_rubin_test/",

@@ -22,7 +22,6 @@ else:
     print("Login token:   %s" % token)
     # print("Login token:   %s" % token)
 
-
 cfg_path =script_dir / "config_file.json"
 with cfg_path.open() as f:
     params = json.load(f)
@@ -31,17 +30,35 @@ ra_center = params["ra"]
 dec_center = params["dec"]
 radius = params["radius"]   # degrees
 Ds_max = params["Ds_max"]
+print("Ds_max :", Ds_max, "pc")
 N =params["N"]
 print("Generate ",N, " events in (ra,dec) = (",ra_center,",", dec_center,")")
+
+mu0_max = 5*np.log10(float(Ds_max))-5
+print(mu0_max)
 
 query = f"""
     SELECT *
     FROM lsst_sim.simdr2
     WHERE q3c_radial_query(ra, dec, {ra_center}, {dec_center}, {radius})
-      AND mu0 < (5*LOG10({Ds_max})-5)
+      AND mu0 < ({mu0_max})
     LIMIT {N+1000}
     """
 
+# query = f"""
+#     SELECT *
+#     FROM lsst_sim.simdr2
+#     WHERE q3c_radial_query(ra, dec, {ra_center}, {dec_center}, {radius})
+#       AND mu0 < (5*LOG10({Ds_max})-5)
+#     LIMIT {N+1000}
+#     """
+
+# query = f"""
+#     SELECT *
+#     FROM lsst_sim.simdr2
+#     WHERE q3c_radial_query(ra, dec, {ra_center}, {dec_center}, {radius})
+#     LIMIT {N+1000}
+#     """
 
 t0_range = params["t0_range"]
 
