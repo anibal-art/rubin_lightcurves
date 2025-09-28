@@ -46,7 +46,10 @@ conda create -n rubin-ml python=3.10
 conda activate rubin-ml
 
 # Core deps
-pip install rubin-sim pyLIMA astropy numpy pandas matplotlib
+pip install pyLIMA astropy numpy pandas matplotlib
+pip install rubin-sim
+scheduler_download_data
+rs_download_data
 
 # Astro Data Lab client (provides the `dl` module)
 pip install --ignore-installed --no-cache-dir astro-datalab
