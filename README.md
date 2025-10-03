@@ -89,7 +89,7 @@ Edit `config_file.json`:
 ```
 
 - `model` / `system_type` are paired (see [Models](#models)).
-- `t0_range` (JD) sets the window to draw event peaks \(t_0\).
+- `t0_range` (JD) sets the window to draw event peaks \(t_0\). If "t0_range": false is set, then t0 is sampled from a uniform distribution between [time_start-0.5tE, time_end+0.5tE]. Here time_start and time_end correspond to the minimum and maximum dates in the OpSim for the Bulge..
 - `radius` (deg) is the cone search around `(ra, dec)` for TRILEGAL sources.
 - `Ds_max` (pc) filters by distance modulus.
 - `run_parallel`: `true` to use the process pool runner.
