@@ -8,8 +8,8 @@
 "N" : 50,
 "description" : "test",
 "path_save" : "/home/anibal/light_curve_rubin_test/",
-"t0_range" : [2460413.013828608,2463335.01383],
+"t0_range" : false,
 "Ds_max" : 8000,
 "run_parallel": true,
-"N_tr": 8
+"N_tr":10
 }

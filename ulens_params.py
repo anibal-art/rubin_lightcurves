@@ -14,7 +14,8 @@ tstart_Roman = 2461508.763828608
 t0 = tstart_Roman + 20
 
 
-def event_param(random_seed, data_TRILEGAL, system_type, t0_range=[2460413.013828608,2460413.013828608+365.25*8], custom_system=None):
+def event_param(random_seed, data_TRILEGAL, system_type, 
+t0_range, custom_system=None):
     # print(f'Generation of parameters: {system_type}')
 
     np.random.seed(random_seed)
@@ -27,7 +28,7 @@ def event_param(random_seed, data_TRILEGAL, system_type, t0_range=[2460413.01382
     orbital_period = 0
     semi_major_axis =  np.random.uniform(0.1,28)  
 
-    if system_type == "Planets_systems":      
+    if system_type == "Planet_systems":      
         star_mass = np.random.uniform(1,100)
         mass_planet = np.random.uniform(1/300,13)
     
@@ -49,16 +50,23 @@ def event_param(random_seed, data_TRILEGAL, system_type, t0_range=[2460413.01382
 
     else:
         raise ValueError(f"Unknown system_type: {system_type}")
-     
+
     event_params = microlensing_params(system_type, orbital_period, semi_major_axis, DL, star_mass, 
                                                mass_planet, DS, mu_rel, logTe, logL)
 
-    t0 = np.random.uniform(*t0_range)  
- 
     rho = event_params.rho()       
     tE = event_params.tE()
     piE = event_params.piE()
-    
+
+    if t0_range == None:
+        # min and max value of opsim
+        tstart_rubin =  2460992.515460024
+        tend_rubin = 2464601.5487994165
+        t0 = np.random.uniform(tstart_rubin-0.5*tE.value, tstart_rubin+0.5*tE.value)  
+    else:
+        t0 = np.random.uniform(*t0_range)
+
+
     if system_type == "Planets_systems":
         u0 = rho.value*np.random.uniform(-3,3)
     else:    

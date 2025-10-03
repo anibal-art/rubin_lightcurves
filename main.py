@@ -38,7 +38,11 @@ def cli():
     radius    = params["radius"]              # degrees
     Ds_max    = params["Ds_max"]
     N         = int(params["N"])
-    t0_range  = tuple(params["t0_range"])
+    if params["t0_range"]==False:
+        t0_range=None
+    else:
+        t0_range  = tuple(params["t0_range"])
+        
     model     = params["model"]
     system_type = params["system_type"]
     path_to_save_model = params["path_save"]
