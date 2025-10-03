@@ -122,6 +122,11 @@ On first use you’ll be prompted for your **Astro Data Lab** credentials (the l
   - Config: `"model": "USBL", "system_type": "Planet_system"`  
   - Includes finite source and parallax
 
+
+- **Binary star systems (star+star)**  
+  - Config: `"model": "USBL", "system_type": "Binary_stars"`  
+  - Includes finite source and parallax
+
 Parallax is included by default for these models.
 
 ---
