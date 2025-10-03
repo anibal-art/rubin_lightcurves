@@ -110,12 +110,15 @@ On first use you’ll be prompted for your **Astro Data Lab** credentials (the l
 ---
 
 ## Models
+we compute the parameters using uniform distributions for the mass of the lens.
 
 - **Free-floating planets (FFP)**  
-  - Config: `"model": "FSPL", "system_type": "FFP"`  
+  - Config: `"model": "FSPL", "system_type": "FFP"`
+  - $M_L = [0.1 M_{\oplus}, 13 M_{jup}]$ (this will be the range for planetary mass in the following binary models)
   - Finite-source effects included (small Einstein radii)
 
-- **Stellar lenses (e.g., BH)**  
+- **Stellar lenses (e.g., BH)**
+- $M_L = [1 M_{\odot}, 120 M_{\odot}]$ (this will be the range for stellar mass in the following binary models)
   - Config: `"model": "PSPL", "system_type": "BH"`
 
 - **Planetary systems (star+planet)**  
